@@ -34,6 +34,8 @@ ground-truth labels.
 
 ## rf_detr_onnx_sahi_sweep_v5_2.ipynb  updated version with output files tar into one file. Much faster store on google drive
 
+## rf_detr_onnx_sahi_sweep_v5_multiclass.ipynb   adds multiclass support (full classification)
+
 Run order: cells 1–2, then **Runtime → Restart session**, then cells 4
 onward in order.
 
