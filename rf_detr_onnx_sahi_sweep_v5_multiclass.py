@@ -756,61 +756,6 @@ det_img = label_annotator.annotate(det_img, detections, detections_labels)
 sv.plot_images_grid(images=[ann_img, det_img], grid_size=(1, 2),
                    titles=['Ground Truth', f'ONNX + SAHI  conf>={VISUALISE_THRESHOLD}'])
 
-# ── Diagnostic: which class column carries the object signal? ────────────────
-# Runs one image through the real SAHI pipeline, captures the raw per-tile label
-# logits, and summarizes sigmoid scores per column. Run after the inference cell.
-import numpy as np
-from PIL import Image
-
-DIAG_IMAGE_INDEX = 51   # original counting
-DIAG_IMAGE_INDEX = min(DIAG_IMAGE_INDEX, len(ds) - 1)
-
-path, _, _ = ds[DIAG_IMAGE_INDEX]
-image = Image.open(path).convert('RGB')
-
-# Capture the raw label logits from every tile by wrapping perform_inference.
-captured = []
-_orig_perform = detection_model.perform_inference
-def _capturing_perform(image_np):
-    _orig_perform(image_np)
-    captured.append(detection_model._original_predictions[1][0].copy())  # [300, C]
-detection_model.perform_inference = _capturing_perform
-try:
-    _ = get_sliced_prediction(
-        image, detection_model,
-        slice_height=SLICE_SIZE, slice_width=SLICE_SIZE,
-        overlap_height_ratio=OVERLAP_RATIO, overlap_width_ratio=OVERLAP_RATIO,
-        verbose=0,
-    )
-finally:
-    detection_model.perform_inference = _orig_perform   # always restore
-
-logits = np.concatenate(captured, axis=0)          # [tiles*300, C]
-probs  = 1.0 / (1.0 + np.exp(-logits))             # sigmoid
-C = probs.shape[1]
-
-print(f'Image: {path}')
-print(f'Tiles: {len(captured)}   queries/tile: {captured[0].shape[0]}   class columns: {C}\n')
-print(f'{"col":>4}  {"mean":>8}  {"max":>8}  {"top100_mean":>12}  {">0.50":>7}  {">0.25":>7}')
-for c in range(C):
-    col  = probs[:, c]
-    topk = np.sort(col)[-100:].mean()
-    print(f'{c:>4}  {col.mean():>8.4f}  {col.max():>8.4f}  {topk:>12.4f}  '
-          f'{int((col > 0.5).sum()):>7}  {int((col > 0.25).sum()):>7}')
-
-# Among reasonably-confident queries, which column is the arg-max?
-conf_mask = probs.max(axis=1) > 0.25
-print('\nAmong queries with max sigmoid > 0.25:')
-if conf_mask.any():
-    winners = probs[conf_mask].argmax(axis=1)
-    for c in range(C):
-        print(f'  column {c}: {int((winners == c).sum())} queries')
-else:
-    print('  (none exceeded 0.25 in any column at this base threshold)')
-
-print(f'\nThe object class is the column with the higher max / top100_mean / counts.')
-print(f'Currently OBJECT_CLASS_COLUMN = {OBJECT_CLASS_COLUMN} (in cell 9).')
-
 ## Full dataset inference — annotated images + COCO predictions JSON.
 ## Uses VISUALISE_THRESHOLD from the cell above for the saved annotated images.
 ## Set SAVE_THRESHOLD here independently if you prefer.
