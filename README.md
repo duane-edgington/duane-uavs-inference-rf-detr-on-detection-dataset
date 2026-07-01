@@ -32,6 +32,8 @@ Pure-inference runs with no labels only need the inference and save
 cells; the sweep, confusion-matrix, and object-size cells require
 ground-truth labels.
 
+## rf_detr_onnx_sahi_sweep_v5_2.ipynb  updated version with output files tar into one file. Much faster store on google drive
+
 Run order: cells 1–2, then **Runtime → Restart session**, then cells 4
 onward in order.
 
